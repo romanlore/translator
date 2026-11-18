@@ -8,6 +8,8 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+    env:
+      CI: 1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,7 +20,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
       - run: |
-          npm install
+          npm install expo@latest --legacy-peer-deps
           npx expo install --fix
       - run: npx expo prebuild --platform android --clean --non-interactive
       - working-directory: android
