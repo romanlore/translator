@@ -1,4 +1,10 @@
-const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com';
+const REQUEST_TIMEOUT_MS = 20000;
+
+function buildEndpoint(baseUrl, model) {
+  const cleanBase = (baseUrl || DEFAULT_BASE_URL).trim().replace(/\/+$/, '');
+  return `${cleanBase}/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+}
 
 function parseJsonResponse(rawText) {
   if (!rawText) return null;
@@ -17,11 +23,27 @@ function parseJsonResponse(rawText) {
   }
 }
 
+async function fetchWithTimeout(url, options) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('Сервер не ответил за 20 сек. Проверьте интернет, прокси или VPN.');
+    }
+    throw new Error('Нет соединения с сервером. Проверьте интернет, прокси или VPN.');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function transcribeAndTranslateAudio({
   base64Audio,
   mimeType = 'audio/mp4',
   direction,
   apiKey,
+  baseUrl,
   model = 'gemini-3.8-flash',
   includeTranslit = true,
 }) {
@@ -34,13 +56,13 @@ export async function transcribeAndTranslateAudio({
       }"}`
     : `Распознай речь на хинди (или хинглише) на аудиозаписи и переведи её на естественный разговорный русский язык. Верни строго JSON без markdown: {"transcript": "распознанный текст на хинди", "translation": "перевод на русский", "translit": ""}`;
 
-  const url = `${BASE_URL}/${encodeURIComponent(model)}:generateContent`;
-  const response = await fetch(url, {
+  const url = buildEndpoint(baseUrl, model);
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey) headers['x-goog-api-key'] = apiKey;
+
+  const response = await fetchWithTimeout(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey,
-    },
+    headers,
     body: JSON.stringify({
       contents: [
         {
@@ -85,6 +107,7 @@ export async function translateText({
   text,
   direction,
   apiKey,
+  baseUrl,
   model = 'gemini-3.8-flash',
   includeTranslit = true,
 }) {
@@ -92,18 +115,16 @@ export async function translateText({
   const prompt = isRuToHi
     ? `Переведи фразу с русского на естественный разговорный хинди (деванагари).${
         includeTranslit ? ' Добавь транслитерацию латиницей.' : ''
-      } Верни строго JSON без markdown: {"translation": "...", "translit": "..."}.
-Фраза: ${text}`
-    : `Переведи фразу с хинди на естественный разговорный русский язык. Верни строго JSON без markdown: {"translation": "...", "translit": ""}.
-Фраза: ${text}`;
+      } Верни строго JSON без markdown: {"translation": "...", "translit": "..."}.\nФраза: ${text}`
+    : `Переведи фразу с хинди на естественный разговорный русский язык. Верни строго JSON без markdown: {"translation": "...", "translit": ""}.\nФраза: ${text}`;
 
-  const url = `${BASE_URL}/${encodeURIComponent(model)}:generateContent`;
-  const response = await fetch(url, {
+  const url = buildEndpoint(baseUrl, model);
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey) headers['x-goog-api-key'] = apiKey;
+
+  const response = await fetchWithTimeout(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey,
-    },
+    headers,
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
