@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "RU-HI Переводчик",
+    "slug": "ru-hi-voice-translator",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.translator.ruhi",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Приложению нужен доступ к микрофону для записи и перевода речи (русский и хинди)."
+      }
+    },
+    "android": {
+      "package": "com.translator.ruhi",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Разрешите доступ к микрофону для голосового перевода."
+        }
+      ]
+    ]
+  }
+}
